@@ -1,0 +1,23 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	plan(plan)
+	search(search)
+	filter(filter)
+	synthesize(synthesize)
+	refine(refine)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> plan;
+	filter --> synthesize;
+	plan --> search;
+	refine --> search;
+	search --> filter;
+	synthesize -.-> __end__;
+	synthesize -.-> refine;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc

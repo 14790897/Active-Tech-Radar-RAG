@@ -1,0 +1,23 @@
+[project]
+name = "active-tech-radar-rag"
+version = "0.1.0"
+description = "Active Tech-Radar RAG powered by LangGraph"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Active Tech-Radar" }]
+dependencies = [
+  "langgraph==1.1.6",
+  "langchain-core==1.2.26",
+  "langchain-openai==1.1.12",
+  "python-dotenv==1.2.2",
+  "ddgs==9.12.1",
+  "tavily-python==0.7.23",
+]
+
+[project.scripts]
+active-tech-radar = "active_radar.main:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
