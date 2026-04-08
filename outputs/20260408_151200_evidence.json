@@ -1,0 +1,127 @@
+{
+  "run_id": "20260408_151200",
+  "question": "过去一周有没有比 DPO 更轻量的对齐算法？",
+  "summary": "是的，SimPO 是一种比 DPO 更轻量的对齐算法。SimPO 消除了对参考模型的需求，与 DPO 的普通实现相比，运行时间减少了约 20%，GPU 内存使用量减少了约 10% [2]。SimPO 还使用与生成指标一致的参考无关奖励，使其在计算和内存上更高效 [2]。",
+  "evidence": [
+    {
+      "id": 1,
+      "title": "Post-Training in 2026: GRPO, DAPO, RLVR & Beyond",
+      "url": "https://llm-stats.com/blog/research/post-training-techniques-2026",
+      "snippet": "1 month ago - SimPO outperforms DPO by 6.4 points on AlpacaEval 2 and 7.5 points on Arena-Hard . KTO (Kahneman-Tversky Optimization) works with simple thumbs-up/thumbs-down feedback instead of pairwise comparisons.",
+      "source": "tavily",
+      "investigated": false,
+      "investigation_reason": "",
+      "site_name": "",
+      "published_at": "",
+      "content": ""
+    },
+    {
+      "id": 2,
+      "title": "[PDF] SimPO: Simple Preference Optimization with a Reference-Free ...",
+      "url": "https://openreview.net/pdf?id=3Tzcot1LKb",
+      "snippet": "Compared to a vanilla DPO implementation,12 SimPO cuts run time by roughly 20% and reduces GPU memory usage by about 10%, thanks to eliminating forward passes",
+      "source": "tavily",
+      "investigated": true,
+      "investigation_reason": "Primary source (OpenReview PDF) for SimPO, which is explicitly mentioned as being lighter than DPO (cuts runtime by 20%, reduces GPU memory by 10%). Directly addresses the question about a more lightweight algorithm.",
+      "site_name": "openreview.net",
+      "published_at": "",
+      "content": "SimPO: Simple Preference Optimization with a Reference-Free Reward Yu Meng1∗ Mengzhou Xia2 ∗ Danqi Chen2 1Computer Science Department, University of Virginia 2Princeton Language and Intelligence (PLI), Princeton University yumeng5@virginia.edu {mengzhou,danqic}@cs.princeton.edu Abstract Direct Preference Optimization (DPO) is a widely used offline preference opti-mization algorithm that reparameterizes reward functions in reinforcement learning from human feedback (RLHF) to enhance simplicity and training stability. In this work, we propose SimPO, a simpler yet more effective approach. The effectiveness of SimPO is attributed to a key design: using the average log probability of a sequence as the implicit reward. This reward formulation better aligns with model generation and eliminates the need for a reference model, making it more compute and memory efficient. Additionally, we introduce a target reward margin to the Bradley-Terry objective to encourage a larger margin between the winning and losing responses, further improving the algorithm’s performance. We compare SimPO to DPO and its recent variants across various state-of-the-art training setups, including both base and instruction-tuned models such as Mistral, Llama 3, and Gemma 2. We evaluate on extensive chat-based evaluation benchmarks, including AlpacaEval 2, MT-Bench, and Arena-Hard. Our results demonstrate that SimPO consistently and significantly outperforms existing approaches without substantially increasing response length. Specifically, SimPO outperforms DPO by up to 6.4 points on AlpacaEval 2 and by up to 7.5 points on Arena-Hard. Our top-performing model, built on Gemma-2-9B-it, achieves a 72.4% length-controlled win rate on AlpacaEval 2, a 59.1% win rate on Arena-Hard, and ranks 1st on Chatbot Arena among <10B models with real user votes.1 1 Introduction Learning from human feedback is crucial in aligning large language models (LLMs) with human values and intentions , ensuring they are helpful, honest, and harmless . Reinforcement learning from human feedback (RLHF) [18, 58, 68] is a popular method for fine-tuning language models to achieve effective alignment. While the classical RLHF approach [58, 65] has shown impressive results, it presents optimization challenges due to its multi-stage procedure, which involves training a reward model and then optimizing a policy model to maximize that reward . Recently, researchers have been exploring simpler offline algorithms. Direct Preference Optimization (DPO) is one such approach. DPO reparameterizes the reward function in RLHF to directly learn a policy model from preference data, eliminating the need for an explicit reward model. It has gained widespread practical adoption due to its simplicity and stability. In DPO, the implicit reward is formulated using the log ratio of the likelihood of a response between the current policy model and the supervised fine-tuned (SFT) model. However, this reward formulation is not directly aligned with ∗Equal Contribution. 1Code and models can be found at 38th Conference on Neural Information Processing Systems (NeurIPS 2024). 0 25 50 AlpacaEval 2 LC Win Rate (%) Llama3 Base 8B Llama3 Instruct 8B Mistral Base 7B Mistral Instruct 7B Llama3 Base 8B Llama3 Instruct 8B Mistral Base 7B Mistral Instruct 7B Arena-Hard Win Rate (%) 0 20 40 +3.8 +4.4 +6.4 +5.3 +7.5 +1.2 +6.2 +4.5 DPO SimPO DPO SimPO Figure 1: SimPO and DPO mainly differ in their reward formulation, as indicated in the shaded box. SimPO outperforms DPO significantly across a range of settings on AlpacaEval 2 and Arena-Hard. the metric used to guide generation, which is approximately the average log likelihood of a response generated by the policy model. We hypothesize that this discrepancy between training and inference may lead to suboptimal performance. Table 1: Length-controlled (LC) and raw win rate (WR), and generation lengths of top models on the AlpacaEval 2 Leaderboard. Bold are the models we trained. Model LC (%) WR (%) Len. Gemma-2-9B-it-SimPO 72.4 65.9 1833 GPT-4 Turbo (04/09) 55.0 46.1 1802 Gemma-2-9B-it 51.1 38.1 1571 Llama-3-8B-Instruct-SimPO 44.7 40.5 1825 Claude 3 Opus 40.5 29.1 1388 Llama-3-8B-Instruct-DPO 40.3 37.9 1837 Llama-3-70B-Instruct 34.4 33.2 1919 Llama-3-8B-Instruct 26.0 25.3 1899 In this work, we propose SimPO, a simple yet effective offline preference optimiza-tion algorithm (Figure 1). The core of our algorithm aligns the reward function in the preference optimization objective with the generation metric. SimPO consists of two major components: (1) a length-normalized reward, calculated as the aver-age log probability of all tokens in a re-sponse using the policy model, and (2) a target reward margin to ensure the reward difference between winning and losing re-sponses exceeds this margin. In summary, SimPO has the following properties: • Simplicity: SimPO does not require a reference model, making it more lightweight and easier to implement compared to DPO and other reference-based methods. • Significant performance advantage: Despite its simplicity, SimPO significantly outperforms DPO and its latest variants (e.g., a recent reference-free objective ORPO ). The performance advantage is consistent across various training setups and extensive chat-based evaluations, includ-ing AlpacaEval 2 [51, 28] and the challenging Arena-Hard benchmark. It achieves up to a 6.4 point improvement on AlpacaEval 2 and a 7.5 point improvement on Arena-Hard compared to DPO (Figure 1). • Minimal length exploitation: SimPO does not significantly increase response length compared to the SFT or DPO models (Table 1), indicating minimal length exploitation [28, 66, 80]. Extensive analysis shows that SimPO utilizes preference data more effectively, leading to a more accurate likelihood ranking of winning and losing responses on a held-out validation set, which in turn translates to a better policy model. As shown in Table 1, our Gemma-2-9B-it-SimPO model achieves state-of-the-art performance, with a 72.4% length-controlled win rate on AlpacaEval 2 and a 59.1% win rate on Arena-Hard, establishing it as the strongest open-source model under 10B parameters. Most notably, when evaluated on Chatbot Arena with real user votes, our model significantly improved upon the initial Gemma-2-9B-it model, advancing from 36th to 25th place and ranking first among all <10B models on the leaderboard.2 2 SimPO: Simple Preference Optimization In this section, we first introduce the background of DPO (§2.1). Then we identify the discrepancy between DPO’s reward and the likelihood metric used for generation, and propose an alternative reference-free reward formulation that mitigates this issue (§2.2). Finally, we derive the SimPO objective by incorporating a target reward margin term into the Bradley-Terry model (§2.3). 2As of September 16th, 2024. 2 2.1 Background: Direct Preference Optimization (DPO) DPO is one of the most popular preference optimization methods. Instead of learning an explicit reward model , DPO reparameterizes the reward function r using a closed-form expression with the optimal policy: r(x, y) = β log πθ(y | x) πref(y | x) + β log Z(x), (1) where πθ is the policy model, πref is the reference policy, typically the supervised fine-tuned (SFT) model, and Z(x) is the partition function. By incorporating this reward formulation into the Bradley-Terry (BT) ranking objective , p(yw ≻yl | x) = σ (r(x, yw) −r(x, yl)), DPO expresses the probability of preference data with the policy model rather than the reward model, yielding the following objective: LDPO(πθ; πref) = −E(x,yw,yl)∼D \u0014 log σ \u0012 β log πθ(yw | x) πref(yw | x) −β log πθ(yl | x) πref(yl | x) \u0013\u0015 , (2) where (x, yw, yl) are preference pairs consisting of the prompt, the winning response, and the losing response from the preference dataset D. 2.2 A Simple Reference-Free Reward Aligned with Generation Discrepancy between reward and generation for DPO. Using Eq. (1) as the implicit reward ..."
+    },
+    {
+      "id": 3,
+      "title": "SimPO: Simple Preference Optimization with a Reference-Free ...",
+      "url": "https://arxiv.org/abs/2405.14734",
+      "snippet": "Specifically, SimPO outperforms DPO by up to 6.4 points on AlpacaEval 2 and by up to 7.5 points on Arena-Hard. Our top-performing model, built",
+      "source": "tavily",
+      "investigated": true,
+      "investigation_reason": "Primary source (arXiv) for SimPO, providing technical details and performance comparisons. The snippet indicates it outperforms DPO, and the full paper will confirm if it's more lightweight (e.g., reference-free).",
+      "site_name": "arxiv.org",
+      "published_at": "",
+      "content": "Cornell University arxiv logo Help | Advanced Search arXiv logo Cornell University Logo quick links Computer Science > Computation and Language Title:SimPO: Simple Preference Optimization with a Reference-Free Reward | | | --- | | Comments: | NeurIPS 2024. Code & models: this https URL. v3 updates: Gemma 2 results (Appendix J); more discussions about length normalization (Section 2.2) and KL regularization (Section 2.3) | | Subjects: | Computation and Language (cs.CL); Machine Learning (cs.LG) | | Cite as: | arXiv:2405.14734 [cs.CL] | | | (or arXiv:2405.14734v3 [cs.CL] for this version) | | | Focus to learn more arXiv-issued DOI via DataCite | Submission history Access Paper: References & Citations BibTeX formatted citation Bookmark BibSonomy logo Reddit logo Bibliographic and Citation Tools Code, Data and Media Associated with this Article Demos Recommenders and Search Tools arXivLabs: experimental projects with community collaborators arXivLabs is a framework that allows collaborators to develop and share new arXiv features directly on our website. Both individuals and organizations that work with arXivLabs have embraced and accepted our values of openness, community, excellence, and user data privacy. arXiv is committed to these values and only works with partners that adhere to them. Have an idea for a project that will add value for arXiv's community? Learn more about arXivLabs. arXiv Operational Status"
+    },
+    {
+      "id": 4,
+      "title": "A Guide to Reinforcement Learning Post-Training for LLMs: PPO, DPO, GRPO, and Beyond",
+      "url": "https://huggingface.co/blog/karina-zadorozhny/guide-to-llm-post-training-algorithms",
+      "snippet": "January 25, 2026 - Note that the authors used an estimator, as is standard for the KL penalty calculation, or even set the reference point to zero when KTO is preceded by SFT on the same subset of data. All of the algorithms above require us to load a Reference Model ... f\\pi_{ref}πref into memory so that we can calculate the KL-divergence ratio. But these models are huge and it doubles the GPU memory requirement. SimPO argues we don't need the reference model.",
+      "source": "tavily",
+      "investigated": false,
+      "investigation_reason": "",
+      "site_name": "",
+      "published_at": "",
+      "content": ""
+    },
+    {
+      "id": 5,
+      "title": "ComPO: Preference Alignment via Comparison Oracles - arXiv",
+      "url": "https://arxiv.org/html/2505.05465v2",
+      "snippet": "While DPO provides a computationally convenient framework by maximizing certain log-likelihood margin between preferred and dispreferred",
+      "source": "tavily",
+      "investigated": false,
+      "investigation_reason": "",
+      "site_name": "",
+      "published_at": "",
+      "content": ""
+    },
+    {
+      "id": 6,
+      "title": "Do Post-Training Algorithms Actually Differ? A Controlled Study ...",
+      "url": "https://arxiv.org/html/2603.19335",
+      "snippet": "Post-training alignment has produced dozens of competing algorithms—DPO, SimPO, KTO, GRPO, and others—yet practitioners lack controlled",
+      "source": "tavily",
+      "investigated": false,
+      "investigation_reason": "",
+      "site_name": "",
+      "published_at": "",
+      "content": ""
+    },
+    {
+      "id": 7,
+      "title": "Lightweight Robust Direct Preference Optimization - arXiv",
+      "url": "https://arxiv.org/html/2510.23590v1",
+      "snippet": "Unlike prior DRO-based DPO methods, our approach focuses solely on robustness to the preference distribution, rather than the full data-",
+      "source": "tavily",
+      "investigated": false,
+      "investigation_reason": "",
+      "site_name": "",
+      "published_at": "",
+      "content": ""
+    },
+    {
+      "id": 8,
+      "title": "The Modern Post-Training Stack — SimPO, ORPO, KTO and Beyond",
+      "url": "https://medium.com/@fahey_james/dpo-isnt-enough-the-modern-post-training-stack-simpo-orpo-kto-and-beyond-d82e52a1ee6c",
+      "snippet": "In 2023, Direct Preference Optimization (DPO) swept the LLM world as the “RL-free alignment” method — simple, stable, and performant.",
+      "source": "tavily",
+      "investigated": false,
+      "investigation_reason": "",
+      "site_name": "",
+      "published_at": "",
+      "content": ""
+    },
+    {
+      "id": 9,
+      "title": "[2510.23590] Lightweight Robust Direct Preference Optimization",
+      "url": "https://arxiv.org/abs/2510.23590",
+      "snippet": "Abstract:Direct Preference Optimization (DPO) has become a popular method for fine-tuning large language models (LLMs) due to its stability",
+      "source": "tavily",
+      "investigated": false,
+      "investigation_reason": "",
+      "site_name": "",
+      "published_at": "",
+      "content": ""
+    },
+    {
+      "id": 10,
+      "title": "[NeurIPS 2024] SimPO: Simple Preference Optimization ... - GitHub",
+      "url": "https://github.com/princeton-nlp/SimPO",
+      "snippet": "We propose a simpler and more effective preference optimization algorithm than DPO (Direct Preference Optimization) without using a reference model.",
+      "source": "tavily",
+      "investigated": false,
+      "investigation_reason": "",
+      "site_name": "",
+      "published_at": "",
+      "content": ""
+    }
+  ]
+}
